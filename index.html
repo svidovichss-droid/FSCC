@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FSSC 22000 v6 Ассистент</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="theme-color" content="#1e3a8a">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        :root {
+            --safe-area-inset-top: env(safe-area-inset-top);
+            --safe-area-inset-bottom: env(safe-area-inset-bottom);
+            --safe-area-inset-left: env(safe-area-inset-left);
+            --safe-area-inset-right: env(safe-area-inset-right);
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            padding-top: var(--safe-area-inset-top);
+            padding-bottom: var(--safe-area-inset-bottom);
+            padding-left: var(--safe-area-inset-left);
+            padding-right: var(--safe-area-inset-right);
+            color: #1e293b;
+        }
+        
+        .message-content {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            line-height: 1.6;
+        }
+        
+        .certification-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+            overflow: hidden;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(30, 58, 138, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(15, 118, 110, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(30, 58, 138, 0.03) 0%, transparent 50%);
+        }
+        
+        .chat-bubble {
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin: 12px 0;
+            max-width: 80%;
+            position: relative;
+            animation: fadeIn 0.3s ease-in;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .user-bubble {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3730a3 100%);
+            margin-left: auto;
+            border-bottom-right-radius: 4px;
+            color: white;
+        }
+        
+        .bot-bubble {
+            background: white;
+            border-bottom-left-radius: 4px;
+            color: #1e293b;
+            border-left: 4px solid #0f766e;
+        }
+        
+        .typing-dots {
+            display: inline-flex;
+            gap: 4px;
+        }
+        
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #0f766e;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+        
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+        
+        .send-btn {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3730a3 100%);
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            color: white;
+        }
+        
+        .send-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(30, 58, 138, 0.3);
+        }
+        
+        .send-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            margin-right: 12px;
+            flex-shrink: 0;
+            font-weight: 600;
+            color: white;
+        }
+        
+        .chat-container {
+            width: 100%;
+            max-width: 900px;
+            height: calc(100vh - var(--safe-area-inset-top) - var(--safe-area-inset-bottom));
+            background: white;
+            border-radius: 0;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: none;
+        }
+        
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            -webkit-overflow-scrolling: touch;
+            background: #f8fafc;
+        }
+        
+        .input-container {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #1e3a8a, #3730a3);
+            padding: 20px;
+            text-align: center;
+            color: white;
+            position: relative;
+            padding-top: calc(20px + var(--safe-area-inset-top));
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .status-message {
+            padding: 12px;
+            margin: 10px 20px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 14px;
+            display: none;
+            font-weight: 500;
+        }
+        
+        .status-success {
+            background: #d1fae5;
+            color: #065f46;
+            display: block;
+            border-left: 4px solid #10b981;
+        }
+        
+        .status-error {
+            background: #fee2e2;
+            color: #991b1b;
+            display: block;
+            border-left: 4px solid #ef4444;
+        }
+        
+        .new-chat-btn {
+            position: absolute;
+            top: calc(20px + var(--safe-area-inset-top));
+            right: 20px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 6px;
+            padding: 8px 16px;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 500;
+        }
+        
+        .new-chat-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: scale(1.05);
+        }
+        
+        .empty-chat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #475569;
+            text-align: center;
+            padding: 30px;
+        }
+        
+        .empty-chat-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            color: #1e3a8a;
+        }
+        
+        /* Стили для мобильной навигации */
+        .chats-sidebar {
+            position: fixed;
+            top: 0;
+            left: -320px;
+            width: 320px;
+            height: 100%;
+            background: white;
+            z-index: 1000;
+            transition: left 0.3s ease;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            padding-top: var(--safe-area-inset-top);
+            overflow-y: auto;
+        }
+        
+        .chats-sidebar.active {
+            left: 0;
+        }
+        
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+            display: none;
+        }
+        
+        .sidebar-overlay.active {
+            display: block;
+        }
+        
+        .sidebar-header {
+            padding: 20px;
+            background: linear-gradient(135deg, #1e3a8a, #3730a3);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .sidebar-content {
+            padding: 20px;
+        }
+        
+        .chat-item {
+            padding: 16px;
+            border-bottom: 1px solid #f1f5f9;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            transition: all 0.2s ease;
+        }
+        
+        .chat-item.active {
+            background: #f0f9ff;
+            border-left: 4px solid #1e3a8a;
+        }
+        
+        .chat-item:hover {
+            background: #f8fafc;
+        }
+        
+        .chat-title {
+            font-weight: 600;
+            margin-bottom: 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+            color: #1e293b;
+        }
+        
+        .chat-preview {
+            font-size: 13px;
+            color: #64748b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+        }
+        
+        .chat-date {
+            font-size: 11px;
+            color: #94a3b8;
+        }
+        
+        .delete-chat-btn {
+            color: #ef4444;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 6px;
+            font-size: 14px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+        
+        .delete-chat-btn:hover {
+            background: #fef2f2;
+        }
+        
+        .menu-btn {
+            position: absolute;
+            top: calc(20px + var(--safe-area-inset-top));
+            left: 20px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 6px;
+            width: 40px;
+            height: 40px;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1001;
+        }
+        
+        /* Медиа-запросы для адаптации под разные устройства */
+        @media (min-width: 768px) {
+            .chat-container {
+                height: 90vh;
+                border-radius: 12px;
+                margin: 20px auto;
+                border: 1px solid #e2e8f0;
+            }
+            
+            .header {
+                padding-top: 24px;
+                padding-bottom: 24px;
+                border-radius: 12px 12px 0 0;
+            }
+            
+            .new-chat-btn {
+                top: 24px;
+            }
+            
+            .menu-btn {
+                top: 24px;
+            }
+            
+            .messages-container {
+                padding: 24px;
+            }
+            
+            .input-container {
+                padding: 24px;
+            }
+        }
+        
+        @media (max-width: 767px) {
+            .chat-bubble {
+                max-width: 85%;
+                padding: 14px 16px;
+            }
+            
+            .avatar {
+                width: 36px;
+                height: 36px;
+                font-size: 16px;
+            }
+            
+            .header h1 {
+                font-size: 22px;
+            }
+            
+            input {
+                font-size: 16px; /* Убирает масштабирование на iOS */
+            }
+        }
+        
+        /* Улучшения для iOS */
+        @supports (-webkit-touch-callout: none) {
+            body {
+                -webkit-font-smoothing: antialiased;
+            }
+            
+            .chat-container {
+                height: calc(100vh - var(--safe-area-inset-top) - var(--safe-area-inset-bottom));
+            }
+        }
+        
+        /* Улучшения для Android */
+        @supports not (-webkit-touch-callout: none) {
+            body {
+                -webkit-font-smoothing: auto;
+            }
+        }
+        
+        /* Предотвращение выделения текста на мобильных */
+        .no-select {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        
+        /* Стили для ссылок в сообщениях */
+        .message-content a {
+            color: #1e3a8a;
+            text-decoration: underline;
+        }
+        
+        .user-bubble .message-content a {
+            color: #bfdbfe;
+        }
+        
+        /* Стили для цитат и важной информации */
+        .important-note {
+            background: #f0f9ff;
+            border-left: 4px solid #0ea5e9;
+            padding: 12px 16px;
+            margin: 12px 0;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .requirement {
+            background: #f0fdf4;
+            border-left: 4px solid #22c55e;
+            padding: 12px 16px;
+            margin: 12px 0;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-0 no-select">
+    <!-- Фон с элементами сертификации -->
+    <div class="certification-bg" id="certificationBg"></div>
+    
+    <!-- Боковая панель с чатами -->
+    <div class="chats-sidebar" id="chatsSidebar">
+        <div class="sidebar-header">
+            <h2 class="font-semibold">История консультаций</h2>
+            <button id="closeSidebar" class="text-white text-xl"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="sidebar-content">
+            <div id="chatsList">
+                <!-- Список чатов будет здесь -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Оверлей для закрытия боковой панели -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    
+    <!-- Чат контейнер -->
+    <div class="chat-container">
+        <!-- Заголовок чата -->
+        <div class="header">
+            <button id="menuButton" class="menu-btn">
+                <i class="fas fa-bars"></i>
+            </button>
+            <h1 class="text-2xl font-bold">FSSC 22000 v6 Ассистент</h1>
+            <div class="text-white/90 text-sm mt-1">Консультации по сертификации пищевой промышленности</div>
+            <button id="newChatButton" class="new-chat-btn">
+                <i class="fas fa-plus"></i> <span class="hidden md:inline">Новая консультация</span>
+            </button>
+        </div>
+        
+        <!-- Область сообщений -->
+        <div class="messages-container" id="chatMessages">
+            <!-- Пустой чат -->
+            <div class="empty-chat" id="emptyChat">
+                <div class="empty-chat-icon">
+                    <i class="fas fa-certificate"></i>
+                </div>
+                <h2 class="text-2xl font-bold mb-2">Добро пожаловать в FSSC 22000 v6 Ассистент</h2>
+                <p class="text-lg max-w-md">Задайте вопросы о последней версии схемы сертификации FSSC 22000 для пищевой промышленности. Я помогу с требованиями, документацией и процессами.</p>
+            </div>
+        </div>
+        
+        <!-- Статус сообщения -->
+        <div id="statusMessage" class="status-message"></div>
+        
+        <!-- Индикатор набора -->
+        <div id="typingIndicator" class="hidden px-6 py-2">
+            <div class="flex items-start">
+                <div class="avatar" style="background: linear-gradient(135deg, #0f766e, #14b8a6);">
+                    <i class="fas fa-certificate"></i>
+                </div>
+                <div class="chat-bubble bot-bubble">
+                    <div class="font-bold text-teal-700 mb-1">FSSC Ассистент анализирует</div>
+                    <div class="typing-dots">
+                        <span class="typing-dot"></span>
+                        <span class="typing-dot"></span>
+                        <span class="typing-dot"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Поле ввода -->
+        <div class="input-container">
+            <div class="flex space-x-3">
+                <input 
+                    type="text" 
+                    id="messageInput" 
+                    placeholder="Задайте вопрос о FSSC 22000 версия 6..." 
+                    class="flex-1 px-4 py-3 rounded-lg border border-slate-300 focus:border-slate-500 focus:ring-2 focus:ring-slate-200 outline-none transition-all"
+                >
+                <button 
+                    id="sendButton"
+                    onclick="sendMessage()" 
+                    class="send-btn px-6 py-3 rounded-lg font-semibold text-lg"
+                >
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Конфигурация API Mistral
+        const API_KEY = 'mdrxaCgD40KF6nLH172p9vN59EFJRnhP';
+        const API_URL = 'https://api.mistral.ai/v1/chat/completions';
+        
+        // Доступные модели Mistral
+        const MODELS = {
+            'mistral-tiny': 'mistral-tiny',
+            'mistral-small': 'mistral-small', 
+            'mistral-medium': 'mistral-medium'
+        };
+        
+        // Используем mistral-small как модель по умолчанию
+        const MODEL = MODELS['mistral-small'];
+        
+        // Переменные состояния
+        let chats = [];
+        let currentChatId = null;
+        let isSending = false;
+        const MAX_CHATS = 10;
+        
+        // Инициализация при загрузке
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('messageInput').focus();
+            
+            // Загружаем чаты из локального хранилища
+            loadChats();
+            
+            // Обработчики событий
+            document.getElementById('messageInput').addEventListener('keypress', function(event) {
+                if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault();
+                    sendMessage();
+                }
+            });
+            
+            document.getElementById('newChatButton').addEventListener('click', function() {
+                createNewChat();
+            });
+            
+            document.getElementById('menuButton').addEventListener('click', function() {
+                openSidebar();
+            });
+            
+            document.getElementById('closeSidebar').addEventListener('click', function() {
+                closeSidebar();
+            });
+            
+            document.getElementById('sidebarOverlay').addEventListener('click', function() {
+                closeSidebar();
+            });
+            
+            // Предотвращаем закрытие боковой панели при клике внутри нее
+            document.getElementById('chatsSidebar').addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+            
+            // Автофокус на поле ввода при клике в любом месте чата
+            document.querySelector('.chat-container').addEventListener('click', function() {
+                document.getElementById('messageInput').focus();
+            });
+            
+            // Обработка свайпов для мобильных устройств
+            let startX = 0;
+            document.querySelector('.chat-container').addEventListener('touchstart', function(e) {
+                startX = e.touches[0].clientX;
+            });
+            
+            document.querySelector('.chat-container').addEventListener('touchend', function(e) {
+                const endX = e.changedTouches[0].clientX;
+                const diffX = startX - endX;
+                
+                // Если свайп вправо более 50px, открываем боковую панель
+                if (diffX < -50) {
+                    openSidebar();
+                }
+                
+                // Если свайп влево более 50px, закрываем боковую панель
+                if (diffX > 50) {
+                    closeSidebar();
+                }
+            });
+        });
+        
+        // Функции для работы с боковой панелью
+        function openSidebar() {
+            document.getElementById('chatsSidebar').classList.add('active');
+            document.getElementById('sidebarOverlay').classList.add('active');
+            renderChatsList();
+        }
+        
+        function closeSidebar() {
+            document.getElementById('chatsSidebar').classList.remove('active');
+            document.getElementById('sidebarOverlay').classList.remove('active');
+        }
+        
+        // Функции для работы с чатами
+        function loadChats() {
+            const savedChats = localStorage.getItem('fsscChats');
+            if (savedChats) {
+                chats = JSON.parse(savedChats);
+                
+                if (chats.length > 0) {
+                    // Загружаем последний активный чат
+                    currentChatId = chats[chats.length - 1].id;
+                    loadChat(currentChatId);
+                } else {
+                    // Создаем первый чат, если нет сохраненных
+                    createNewChat();
+                }
+            } else {
+                // Создаем первый чат
+                createNewChat();
+            }
+        }
+        
+        function saveChats() {
+            // Ограничиваем количество чатов
+            if (chats.length > MAX_CHATS) {
+                chats = chats.slice(chats.length - MAX_CHATS);
+            }
+            
+            localStorage.setItem('fsscChats', JSON.stringify(chats));
+        }
+        
+        function createNewChat() {
+            const newChat = {
+                id: Date.now().toString(),
+                title: 'Новая консультация',
+                messages: [],
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            };
+            
+            chats.push(newChat);
+            currentChatId = newChat.id;
+            saveChats();
+            renderChat();
+            renderChatsList();
+            closeSidebar();
+            document.getElementById('messageInput').focus();
+            showStatus('Новая консультация создана!', 'success');
+        }
+        
+        function loadChat(chatId) {
+            currentChatId = chatId;
+            renderChat();
+            closeSidebar();
+            document.getElementById('messageInput').focus();
+        }
+        
+        function deleteChat(chatId, event) {
+            if (event) event.stopPropagation();
+            
+            if (chats.length <= 1) {
+                showStatus('Нельзя удалить единственную консультацию!', 'error');
+                return;
+            }
+            
+            if (confirm('Вы уверены, что хотите удалить эту консультацию?')) {
+                chats = chats.filter(chat => chat.id !== chatId);
+                
+                if (currentChatId === chatId) {
+                    // Переключаемся на другой чат
+                    currentChatId = chats.length > 0 ? chats[0].id : null;
+                }
+                
+                saveChats();
+                renderChat();
+                renderChatsList();
+                showStatus('Консультация удалена!', 'success');
+            }
+        }
+        
+        function updateChatTitle(chatId, newTitle) {
+            const chat = chats.find(c => c.id === chatId);
+            if (chat) {
+                chat.title = newTitle;
+                chat.updatedAt = new Date().toISOString();
+                saveChats();
+                renderChatsList();
+            }
+        }
+        
+        function renderChatsList() {
+            const chatsList = document.getElementById('chatsList');
+            chatsList.innerHTML = '';
+            
+            if (chats.length === 0) {
+                chatsList.innerHTML = '<p class="text-center text-gray-500 py-4">Нет сохраненных консультаций</p>';
+                return;
+            }
+            
+            // Сортируем чаты по дате обновления (новые сверху)
+            const sortedChats = [...chats].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+            
+            sortedChats.forEach(chat => {
+                const chatItem = document.createElement('div');
+                chatItem.className = `chat-item ${chat.id === currentChatId ? 'active' : ''}`;
+                chatItem.innerHTML = `
+                    <div class="flex-1" onclick="loadChat('${chat.id}')">
+                        <div class="chat-title">${escapeHtml(chat.title)}</div>
+                        <div class="chat-preview">${getChatPreview(chat)}</div>
+                        <div class="chat-date">${formatDate(chat.updatedAt)}</div>
+                    </div>
+                    <button class="delete-chat-btn" onclick="deleteChat('${chat.id}', event)">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                `;
+                chatsList.appendChild(chatItem);
+            });
+        }
+        
+        function getChatPreview(chat) {
+            if (chat.messages.length === 0) return 'Пока нет сообщений';
+            
+            const lastMessage = chat.messages[chat.messages.length - 1];
+            const content = lastMessage.content.substring(0, 30);
+            return lastMessage.role === 'user' ? `Вы: ${content}...` : `Ассистент: ${content}...`;
+        }
+        
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+            
+            if (diffDays === 0) {
+                return 'Сегодня';
+            } else if (diffDays === 1) {
+                return 'Вчера';
+            } else if (diffDays < 7) {
+                return `${diffDays} дней назад`;
+            } else {
+                return date.toLocaleDateString('ru-RU');
+            }
+        }
+        
+        function renderChat() {
+            const chatMessages = document.getElementById('chatMessages');
+            const emptyChat = document.getElementById('emptyChat');
+            
+            if (!currentChatId || chats.length === 0) {
+                chatMessages.innerHTML = `
+                    <div class="empty-chat" id="emptyChat">
+                        <div class="empty-chat-icon">
+                            <i class="fas fa-certificate"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold mb-2">Добро пожаловать в FSSC 22000 v6 Ассистент</h2>
+                        <p class="text-lg max-w-md">Задайте вопросы о последней версии схемы сертификации FSSC 22000 для пищевой промышленности. Я помогу с требованиями, документацией и процессами.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const currentChat = chats.find(chat => chat.id === currentChatId);
+            if (!currentChat) return;
+            
+            chatMessages.innerHTML = '';
+            
+            if (currentChat.messages.length === 0) {
+                chatMessages.innerHTML = `
+                    <div class="empty-chat" id="emptyChat">
+                        <div class="empty-chat-icon">
+                            <i class="fas fa-certificate"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold mb-2">Добро пожаловать в FSSC 22000 v6 Ассистент</h2>
+                        <p class="text-lg max-w-md">Задайте вопросы о последней версии схемы сертификации FSSC 22000 для пищевой промышленности. Я помогу с требованиями, документацией и процессами.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            currentChat.messages.forEach(message => {
+                addMessageToChat(message.role, message.content, false);
+            });
+            
+            scrollToBottom();
+        }
+        
+        // Показ статусного сообщения
+        function showStatus(message, type = 'info') {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = message;
+            statusEl.className = 'status-message';
+            
+            if (type === 'success') {
+                statusEl.classList.add('status-success');
+            } else if (type === 'error') {
+                statusEl.classList.add('status-error');
+            }
+            
+            setTimeout(() => {
+                statusEl.style.display = 'none';
+            }, 3000);
+        }
+        
+        function showTypingIndicator() {
+            document.getElementById('typingIndicator').classList.remove('hidden');
+            scrollToBottom();
+        }
+        
+        function hideTypingIndicator() {
+            document.getElementById('typingIndicator').classList.add('hidden');
+        }
+        
+        function scrollToBottom() {
+            const container = document.getElementById('chatMessages');
+            setTimeout(() => {
+                container.scrollTop = container.scrollHeight;
+            }, 100);
+        }
+        
+        // Экранирование HTML для безопасности
+        function escapeHtml(unsafe) {
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+        
+        // Промпт для FSSC 22000 v6
+        const fsscPrompt = `Ты - эксперт по FSSC 22000 версия 6 для пищевой промышленности. Твоя задача - предоставлять точную, структурированную и профессиональную информацию о схеме сертификации.
+
+Основные аспекты FSSC 22000 v6, которые ты должен знать:
+1. Требования к системе менеджмента безопасности пищевой продукции
+2. Дополнительные требования FSSC к ISO 22000
+3. Процесс сертификации и аудита
+4. Документация и записи
+5. Управление рисками и возможностями
+6. Требования к программам предварительных мероприятий (PRPs)
+7. Планы HACCP
+8. Управление инцидентами пищевой безопасности
+9. Требования к мониторингу и измерениям
+10. Постоянное улучшение
+
+Отвечай профессионально, но доступно. Структурируй информацию, выделяй ключевые моменты. Приводи ссылки на конкретные разделы стандарта, когда это уместно.
+
+Примеры хороших ответов:
+"Согласно FSSC 22000 v6, раздел 4.4, система менеджмента безопасности пищевой продукции должна включать..."
+
+"Ключевые изменения в версии 6 включают: 1) усиление требований к культуре пищевой безопасности, 2) более строгие требования к управлению аллергенами..."
+
+"Для подготовки к сертификационному аудиту рекомендую: 1) провести внутренний аудит, 2) обновить документацию согласно новым требованиям v6, 3) подготовить доказательства выполнения всех требований..."
+
+Избегай излишне сложных формулировок, но сохраняй профессиональный тон.`;
+
+        async function sendMessage() {
+            if (isSending) return;
+            
+            const messageInput = document.getElementById('messageInput');
+            const sendButton = document.getElementById('sendButton');
+            const message = messageInput.value.trim();
+            
+            if (!message) {
+                showStatus('Введите сообщение', 'error');
+                return;
+            }
+            
+            // Блокируем кнопку отправки
+            isSending = true;
+            sendButton.disabled = true;
+            sendButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            
+            // Убираем пустой чат, если он есть
+            const emptyChat = document.getElementById('emptyChat');
+            if (emptyChat) {
+                emptyChat.remove();
+            }
+            
+            // Добавляем сообщение пользователя
+            addMessageToChat('user', message);
+            messageInput.value = '';
+            
+            // Сохраняем сообщение в текущий чат
+            const currentChat = chats.find(chat => chat.id === currentChatId);
+            if (currentChat) {
+                currentChat.messages.push({ role: 'user', content: message });
+                
+                // Обновляем заголовок чата, если это первое сообщение
+                if (currentChat.messages.length === 1) {
+                    const title = message.length > 20 ? message.substring(0, 20) + '...' : message;
+                    updateChatTitle(currentChatId, title);
+                }
+                
+                currentChat.updatedAt = new Date().toISOString();
+                saveChats();
+            }
+            
+            // Показываем индикатор набора
+            showTypingIndicator();
+            showStatus('Ассистент анализирует вопрос...', 'info');
+            
+            try {
+                // Подготавливаем сообщения для API
+                const messagesForAPI = [
+                    { 
+                        role: 'system', 
+                        content: fsscPrompt
+                    },
+                    ...currentChat.messages.slice(-6)
+                ];
+                
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${API_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: MODEL,
+                        messages: messagesForAPI,
+                        max_tokens: 1500,
+                        temperature: 0.3,
+                        stream: false
+                    })
+                });
+                
+                if (!response.ok) {
+                    let errorMessage = `HTTP error! status: ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        errorMessage = errorData.error?.message || errorData.error?.code || errorMessage;
+                    } catch (e) {
+                        // Если не удалось распарсить JSON с ошибкой
+                        const errorText = await response.text();
+                        errorMessage = errorText || errorMessage;
+                    }
+                    throw new Error(errorMessage);
+                }
+                
+                const data = await response.json();
+                
+                if (!data.choices || data.choices.length === 0) {
+                    throw new Error('Пустой ответ от API');
+                }
+                
+                const assistantMessage = data.choices[0].message.content;
+                
+                // Добавляем ответ ассистента
+                addMessageToChat('assistant', assistantMessage);
+                
+                // Сохраняем ответ в текущий чат
+                if (currentChat) {
+                    currentChat.messages.push({ role: 'assistant', content: assistantMessage });
+                    currentChat.updatedAt = new Date().toISOString();
+                    saveChats();
+                }
+                
+                showStatus('Ответ получен', 'success');
+                
+            } catch (error) {
+                console.error('Ошибка при отправке сообщения:', error);
+                
+                let errorMessage = 'Произошла ошибка при получении ответа. ';
+                
+                if (error.message.includes('401')) {
+                    errorMessage += 'Проверьте API ключ.';
+                } else if (error.message.includes('429')) {
+                    errorMessage += 'Превышен лимит запросов. Попробуйте позже.';
+                } else if (error.message.includes('500')) {
+                    errorMessage += 'Внутренняя ошибка сервера. Попробуйте позже.';
+                } else {
+                    errorMessage += error.message;
+                }
+                
+                addMessageToChat('assistant', `Извините, произошла ошибка: ${errorMessage}`);
+                showStatus('Ошибка при получении ответа', 'error');
+            } finally {
+                // Снимаем блокировку
+                isSending = false;
+                sendButton.disabled = false;
+                sendButton.innerHTML = '<i class="fas fa-paper-plane"></i>';
+                hideTypingIndicator();
+                scrollToBottom();
+            }
+        }
+        
+        function addMessageToChat(role, content, animate = true) {
+            const chatMessages = document.getElementById('chatMessages');
+            
+            // Создаем контейнер для сообщения
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `flex items-start ${role === 'user' ? 'justify-end' : ''} ${animate ? 'animate-fadeIn' : ''}`;
+            
+            // Создаем аватар
+            const avatar = document.createElement('div');
+            avatar.className = 'avatar';
+            
+            if (role === 'user') {
+                avatar.style.background = 'linear-gradient(135deg, #1e3a8a, #3730a3)';
+                avatar.innerHTML = '<i class="fas fa-user"></i>';
+            } else {
+                avatar.style.background = 'linear-gradient(135deg, #0f766e, #14b8a6)';
+                avatar.innerHTML = '<i class="fas fa-certificate"></i>';
+            }
+            
+            // Создаем пузырек сообщения
+            const bubble = document.createElement('div');
+            bubble.className = role === 'user' ? 'chat-bubble user-bubble' : 'chat-bubble bot-bubble';
+            
+            // Добавляем заголовок для сообщения ассистента
+            if (role === 'assistant') {
+                const title = document.createElement('div');
+                title.className = 'font-bold text-teal-700 mb-1';
+                title.textContent = 'FSSC Ассистент';
+                bubble.appendChild(title);
+            }
+            
+            // Добавляем содержимое сообщения
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            
+            // Обрабатываем форматирование ответа
+            let formattedContent = content;
+            
+            // Заменяем маркированные списки на HTML
+            formattedContent = formattedContent.replace(/\n\d+\.\s/g, '\n<br>• ');
+            formattedContent = formattedContent.replace(/\n-\s/g, '\n<br>• ');
+            formattedContent = formattedContent.replace(/\n\*\s/g, '\n<br>• ');
+            
+            // Обрабатываем заголовки
+            formattedContent = formattedContent.replace(/\n([А-Я][^:\n]+):/g, '\n<br><strong>$1:</strong>');
+            
+            // Добавляем отступы между абзацами
+            formattedContent = formattedContent.replace(/\n\n/g, '<br><br>');
+            
+            // Обрабатываем важные заметки
+            if (formattedContent.includes('Важно:') || formattedContent.includes('Примечание:')) {
+                formattedContent = formattedContent.replace(/(Важно:|Примечание:)([^<]+)/g, '<div class="important-note">$1$2</div>');
+            }
+            
+            // Обрабатываем требования
+            if (formattedContent.includes('Требование:') || formattedContent.includes('Согласно FSSC')) {
+                formattedContent = formattedContent.replace(/(Требование:|Согласно FSSC[^<]+)/g, '<div class="requirement">$1</div>');
+            }
+            
+            contentDiv.innerHTML = formattedContent;
+            bubble.appendChild(contentDiv);
+            
+            // Собираем сообщение
+            if (role === 'user') {
+                messageDiv.appendChild(bubble);
+                messageDiv.appendChild(avatar);
+            } else {
+                messageDiv.appendChild(avatar);
+                messageDiv.appendChild(bubble);
+            }
+            
+            chatMessages.appendChild(messageDiv);
+            
+            if (animate) {
+                scrollToBottom();
+            }
+        }
+        
+        // PWA функциональность
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then((registration) => {
+                        console.log('SW registered: ', registration);
+                    })
+                    .catch((registrationError) => {
+                        console.log('SW registration failed: ', registrationError);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>
