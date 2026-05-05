@@ -1,0 +1,29 @@
+module.exports = {
+  appId: 'com.datamatrix.scanner',
+  productName: 'DataMatrixQualityScanner',
+  directories: {
+    output: 'release',
+    buildResources: 'build',
+  },
+  files: [
+    'dist/**/*',
+    'electron/**/*',
+    'package.json',
+  ],
+  win: {
+    target: [
+      {
+        target: 'portable',
+        arch: ['x64'],
+      },
+    ],
+    icon: 'build/icon.ico',
+    artifactName: '${productName}-${version}-portable.${ext}',
+  },
+  portable: {
+    artifactName: '${productName}-${version}-portable.${ext}',
+  },
+  electronDownload: {
+    mirror: 'https://npmmirror.com/mirrors/electron/',
+  },
+};
